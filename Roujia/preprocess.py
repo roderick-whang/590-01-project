@@ -157,45 +157,60 @@ def update_f1(feature_df, segment, col_name):
     return feature_df
 
 
-# Maximum/Minimum value based on ppt
+# Maximum value based on ppt
 def update_f3(feature_df, segment, col_name):
-    f3 = [np.nanmax(segment['wrist_bvp']),
-          np.nanmin(segment['wrist_bvp'])]
+    f3 = np.nanmax(segment['wrist_bvp'])
     feature_df.iloc[-1][col_name] = f3
     return feature_df
 
 
-# Maximum/Minimum position
+# Minimum value based on ppt
 def update_f4(feature_df, segment, col_name):
-    temp = segment['wrist_bvp']
-    length = len(temp)
-    f4 = [np.argmax(temp)/length,
-          np.argmin(temp)/length]
+    f4 = np.nanmin(segment['wrist_bvp'])
     feature_df.iloc[-1][col_name] = f4
     return feature_df
 
 
-# Fisher-Pearson coefficient skewness
+# Maximum position
+def update_f5(feature_df, segment, col_name):
+    temp = segment['wrist_bvp']
+    length = len(temp)
+    f5 = np.argmax(temp)/length
+    feature_df.iloc[-1][col_name] = f5
+    return feature_df
+
+
+# Maximum position
 def update_f6(feature_df, segment, col_name):
     temp = segment['wrist_bvp']
-    f6 = skew(temp)
+    length = len(temp)
+    f6 = np.argmin(temp)/length
     feature_df.iloc[-1][col_name] = f6
     return feature_df
 
 
-# Kurtosis of the PPG segment
-def update_f7(feature_df, segment, col_name):
+# Fisher-Pearson coefficient skewness
+def update_f8(feature_df, segment, col_name):
     temp = segment['wrist_bvp']
-    f7 = kurtosis(temp)
-    feature_df.iloc[-1][col_name] = f7
+    f8 = skew(temp)
+    feature_df.iloc[-1][col_name] = f8
+    return feature_df
+
+
+# Kurtosis of the PPG segment
+def update_f9(feature_df, segment, col_name):
+    temp = segment['wrist_bvp']
+    f9 = kurtosis(temp)
+    feature_df.iloc[-1][col_name] = f9
     return feature_df
 
 
 # Feature Extraction
 # time_step, time_shift, st_time, end_time = 8, 2, 0, math.ceil(max(df_data['time']))
 time_step, time_shift, st_time, end_time = 8, 2, 0, 100
-col_names = ['activity', 'f1:mean', 'f2', 'f3:max_min',
-             'f4:max_min_position', 'f5', 'f6:skewness', 'f7:kurtosis']
+col_names = ['activity', 'f1:mean', 'f2', 'f3:max', 'f4:min',
+             'f5:max_position', 'f6:min_position', 'f7',
+             'f8:skewness', 'f9:kurtosis']
 feature_df = pd.DataFrame(columns=col_names)
 while (st_time + time_step) <= end_time:
     segment = df_data.loc[(df_data['time'] >= st_time) &
@@ -206,8 +221,10 @@ while (st_time + time_step) <= end_time:
     feature_df = update_f1(feature_df, segment, col_names[1])
     feature_df = update_f3(feature_df, segment, col_names[3])
     feature_df = update_f4(feature_df, segment, col_names[4])
+    feature_df = update_f5(feature_df, segment, col_names[5])
     feature_df = update_f6(feature_df, segment, col_names[6])
-    feature_df = update_f7(feature_df, segment, col_names[7])
+    feature_df = update_f8(feature_df, segment, col_names[8])
+    feature_df = update_f9(feature_df, segment, col_names[9])
 
     st_time = st_time + time_shift
     # print(st_time)
