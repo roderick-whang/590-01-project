@@ -180,7 +180,7 @@ def update_f5(feature_df, segment, col_name):
     return feature_df
 
 
-# Maximum position
+# Minimum position
 def update_f6(feature_df, segment, col_name):
     temp = segment['wrist_bvp']
     length = len(temp)
