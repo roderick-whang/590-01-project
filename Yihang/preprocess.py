@@ -1,4 +1,5 @@
 # %%
+from datetime import time
 import pickle
 from sklearn import preprocessing
 import pandas as pd
@@ -6,10 +7,15 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 import scipy
+import math
+from scipy.stats import skew, kurtosis
 
 # %%
 # ACC:accelerometer data
-p = Path("./S7.pkl")
+file_num = 8
+subject_name = 'S'+str(file_num)
+
+p = Path("../PPG_FieldStudy/"+subject_name + "/" + subject_name + ".pkl")
 with p.open(mode='rb') as f:
     # show = pickle.load(f)
     pkl_data = pickle.load(f, encoding='latin-1')
@@ -45,14 +51,14 @@ heart_rate = heart_rate_original.repeat(2)
 heart_rate = np.insert(heart_rate, -1, np.ones((7,))*heart_rate[-1])
 
 
-print('len wrist_ACC : ' + str(len(wrist_ACC)))
-print('len wrist_BVP : ' + str(len(wrist_BVP)))
-print('len wrist_EDA : ' + str(len(wrist_EDA)))
-print('len wrist_TEMP : ' + str(len(wrist_TEMP)))
-print("---------Empatica E4---------")
-print('len chest_ACC : ' + str(len(chest_ACC)))
-print('len chest_ECG : ' + str(len(chest_ECG)))
-print('len chest_resp : ' + str(len(chest_resp)))
+# print('len wrist_ACC : ' + str(len(wrist_ACC)))
+# print('len wrist_BVP : ' + str(len(wrist_BVP)))
+# print('len wrist_EDA : ' + str(len(wrist_EDA)))
+# print('len wrist_TEMP : ' + str(len(wrist_TEMP)))
+# print("---------Empatica E4---------")
+# print('len chest_ACC : ' + str(len(chest_ACC)))
+# print('len chest_ECG : ' + str(len(chest_ECG)))
+# print('len chest_resp : ' + str(len(chest_resp)))
 
 # %%
 # Data Transformation
@@ -127,20 +133,12 @@ df_data = pd.DataFrame(df)
 # update time stamp
 df_data['time'] = np.array(df_data.index) / 700
 df_data['hr'] = heart_rate[df_data['time'].astype('int')]
-# %%
-plt.style.use("seaborn")
-df_data_temp = df_data[(df_data['time'] > 20) & (df_data['time'] < 40)]
-plt.plot(df_data_temp['time'], df_data_temp['wrist_bvp'], label="PPG amplitude")
-plt.title("PPG signal in the time-domain")
-plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.legend()
-plt.show()
-
-filtered_wrist_bvp = bandpass(df_data_temp['wrist_bvp'], 700)
-plt.plot(filtered_wrist_bvp)
 
 # %%
+from dtw import dtw
+def norm(x, y):
+    return math.fabs(x - y)
+
 def update_act(feature_df, segment, col_name):
     values, counts = np.unique(segment, return_counts=True)
     activity_value = values[np.argmax(counts)]
@@ -148,27 +146,136 @@ def update_act(feature_df, segment, col_name):
     return feature_df
 
 def update_f1(feature_df, segment, col_name):
-    f1 = np.mean(segment['wrist_bvp_norm'])
+    f1 = np.mean(segment['wrist_bvp'])
     feature_df.iloc[-1][col_name] = f1
     return feature_df
 
-# Feature Extraction
-# time_step, time_shift, st_time, end_time = 8, 2, 0, math.ceil(max(df_data['time']))
-time_step, time_shift, st_time, end_time = 8, 2, 0, 100
-col_names = ['activity', 'f1:mean']
-feature_df = pd.DataFrame(columns=col_names)
-while (st_time + time_step) <= end_time:
-    segment = df_data.loc[(df_data['time'] >= st_time) & (df_data['time'] < (st_time + time_step)),:]
+def update_f2(feature_df, segment, col_name):
+    f2 = np.std(segment['wrist_bvp'])
+    feature_df.iloc[-1][col_name] = f2
+    return feature_df
 
-    # update activity
-    feature_df = update_act(feature_df, segment, col_names[0])
-    
-    # update f1
-    feature_df = update_f1(feature_df,segment, col_names[1])
+def update_f3(feature_df, segment, col_name):
+    f3 = np.nanmax(segment['wrist_bvp'])
+    feature_df.iloc[-1][col_name] = f3
+    return feature_df
 
+
+# Minimum value based on ppt
+def update_f4(feature_df, segment, col_name):
+    f4 = np.nanmin(segment['wrist_bvp'])
+    feature_df.iloc[-1][col_name] = f4
+    return feature_df
+
+
+# Maximum position
+def update_f5(feature_df, segment, col_name):
+    temp = segment['wrist_bvp']
+    length = len(temp)
+    f5 = np.argmax(temp)/length
+    feature_df.iloc[-1][col_name] = f5
+    return feature_df
+
+
+# Minimum position
+def update_f6(feature_df, segment, col_name):
+    temp = segment['wrist_bvp']
+    length = len(temp)
+    f6 = np.argmin(temp)/length
+    feature_df.iloc[-1][col_name] = f6
+    return feature_df
+
+def update_f7(feature_df, segment, col_name):
+    f7 = segment['hr'].mean()
+    feature_df.iloc[-1][col_name] = f7
+    return feature_df 
+
+
+# Fisher-Pearson coefficient skewness
+def update_f8(feature_df, segment, col_name):
+    temp = segment['wrist_bvp']
+    f8 = skew(temp)
+    feature_df.iloc[-1][col_name] = f8
+    return feature_df
+
+
+# Kurtosis of the PPG segment
+def update_f9(feature_df, segment, col_name):
+    temp = segment['wrist_bvp']
+    f9 = kurtosis(temp)
+    feature_df.iloc[-1][col_name] = f9
+    return feature_df
+
+def get_time_list(time_step, time_shift, st_time, end_time):
+    arr = np.array([st_time, st_time+time_step])
     st_time = st_time + time_shift
-    print(st_time)
+
+    while (st_time + time_step) <= end_time:
+        temp_end = st_time + time_step
+        arr = np.vstack([arr, np.array([st_time, temp_end])])
+        st_time = st_time + time_shift
+    return arr
+
+def calculate_dtw(time_list, df_data=None):
+    total_len = len(time_list)
+    dtw_matrix = np.zeros((total_len, total_len))
+    for idx, item in enumerate(time_list):
+        left_num = total_len - (idx + 1)
+        current_segment = df_data.loc[(df_data['time'] >= item[0]) & (df_data['time'] < item[1]),:]
+        for j in range(left_num):
+            nxt_id = j+1
+            compare_time = time_list[nxt_id]
+            print(compare_time[0])
+            compare_segment = df_data.loc[(df_data['time'] >= compare_time[0]) & (df_data['time'] < compare_time[1]),:]
+            dtw_return = dtw(current_segment.loc[:,'wrist_bvp'].values, compare_segment.loc[:,'wrist_bvp'].values, dist=norm)
+            dtw_matrix[idx][j] = dtw_return[0] 
+
+    return dtw_matrix
+
+# dtw_matrix = calculate_dtw(time_list, df_data)
+# %%
+
+
+# print(feature_df)
+def get_featuredf(df_data):
+    # Feature Extraction
+    time_step, time_shift, st_time, end_time = 8, 2, 0, math.ceil(max(df_data['time']))
+    # time_step, time_shift, st_time, end_time = 8, 2, 0, 100
+    # time_list = get_time_list(time_step, time_shift, st_time, end_time)
+    col_names = ['activity', 'f1:mean', 'f2:std', 'f3:max', 'f4:min',
+                'f5:max_position', 'f6:min_position', 'f7:hr',
+                'f8:skewness', 'f9:kurtosis']
+    feature_df = pd.DataFrame(columns=col_names)
+
+    while (st_time + time_step) <= end_time:
+        segment = df_data.loc[(df_data['time'] >= st_time) & (df_data['time'] < (st_time + time_step)),:]
+
+        # update activity
+        feature_df = update_act(feature_df, segment, col_names[0])
+        
+        # update f1
+        feature_df = update_f1(feature_df,segment, col_names[1])
+
+        # update f2
+        feature_df = update_f2(feature_df,segment, col_names[2])
+
+        # calculate the rest features
+        feature_df = update_f3(feature_df, segment, col_names[3])
+        feature_df = update_f4(feature_df, segment, col_names[4])
+        feature_df = update_f5(feature_df, segment, col_names[5])
+        feature_df = update_f6(feature_df, segment, col_names[6])
+        feature_df = update_f7(feature_df, segment, col_names[7]) 
+        feature_df = update_f8(feature_df, segment, col_names[8])
+        feature_df = update_f9(feature_df, segment, col_names[9])
+        
+
+        st_time = st_time + time_shift
     
+    return feature_df
+
+feature_df = get_featuredf(df_data)
+feature_df.to_csv(subject_name + ".csv")
+
 # %%
 
 df_data_temp = df_data[df_data['time'] < 20]
@@ -250,3 +357,14 @@ fig.tight_layout()  # otherwise the right y-label is slightly clipped
 plt.title('Heart Rate and Activity Labels')
 plt.show()
 # %%
+plt.style.use("seaborn")
+df_data_temp = df_data[(df_data['time'] > 20) & (df_data['time'] < 40)]
+plt.plot(df_data_temp['time'], df_data_temp['wrist_bvp'], label="PPG amplitude")
+plt.title("PPG signal in the time-domain")
+plt.xlabel("Time (s)")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.show()
+
+filtered_wrist_bvp = bandpass(df_data_temp['wrist_bvp'], 700)
+plt.plot(filtered_wrist_bvp)
