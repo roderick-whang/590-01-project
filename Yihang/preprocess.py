@@ -9,10 +9,21 @@ import numpy as np
 import scipy
 import math
 from scipy.stats import skew, kurtosis
+import argparse
 
 # %%
 # ACC:accelerometer data
-file_num = 8
+parser = argparse.ArgumentParser(description='the parameter is the subject number')
+
+parser.add_argument("-n", "--number", type=int, help='subject number to indicate the file name')
+args = parser.parse_args()
+
+if args.number:
+    print(args.number)
+    file_num = args.number
+else:
+    file_num = 15
+
 subject_name = 'S'+str(file_num)
 
 p = Path("../PPG_FieldStudy/"+subject_name + "/" + subject_name + ".pkl")
@@ -104,7 +115,6 @@ activity_flat = activity_700hz.flatten()
 # plt.plot(chest_acc_z_flat[0:10000])
 # plt.plot(chest_resp_flat[0:10000])
 # %%
-# %%
 # DataFrame begins
 subject = pkl_data['subject']
 age = pkl_data['questionnaire']['AGE']
@@ -140,6 +150,7 @@ def norm(x, y):
     return math.fabs(x - y)
 
 def update_act(feature_df, segment, col_name):
+    segment = segment['activity']
     values, counts = np.unique(segment, return_counts=True)
     activity_value = values[np.argmax(counts)]
     feature_df = feature_df.append({col_name:activity_value}, ignore_index=True) 
@@ -278,6 +289,8 @@ feature_df.to_csv(subject_name + ".csv")
 
 # %%
 
+# Visualization part
+'''
 df_data_temp = df_data[df_data['time'] < 20]
 plt.plot(df_data_temp['time'], df_data_temp['chest_ecg'], label='ecg amplitude')
 plt.title("ECG signal in the time-domain")
@@ -313,8 +326,6 @@ plt.show()
 # fft_wrist_acc_y = np.fft.rfft(wrist_acc_x_flat) 
 # fft_wrist_acc_z = np.fft.rfft(wrist_acc_x_flat) 
 # plt.plot(freq_wrist_acc_x[0:100000], np.abs(freq_wrist_acc_x[0:100000])/np.max(np.abs(freq_wrist_acc_x)), label="ACC_X")
-
-
 
 freq_chest_ecg = np.fft.rfftfreq(len(chest_ecg_flat), 1/700)
 fft_chest_ecg = np.fft.rfft(chest_ecg_flat)
@@ -368,3 +379,4 @@ plt.show()
 
 filtered_wrist_bvp = bandpass(df_data_temp['wrist_bvp'], 700)
 plt.plot(filtered_wrist_bvp)
+'''
