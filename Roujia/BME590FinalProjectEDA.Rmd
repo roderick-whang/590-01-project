@@ -5,10 +5,6 @@ date: 2021/04/11
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ## R Markdown
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
@@ -37,6 +33,7 @@ library(reshape2) #me
 temp = list.files(pattern="*.csv")
 myfiles = lapply(temp, read.csv)
 df <- bind_rows(myfiles)
+df <- df[, names(df) != "X"]
 summary(df)
 ```
 
@@ -47,10 +44,24 @@ ggplot(gather(df), aes(value)) +
     geom_histogram(bins = 100) + 
     facet_wrap(~key, scales = 'free_x', ncol=3)
 ```
+
+## plot each variables again labels
+
+```{r, fig.height = 6, fig.width = 10}
+df$activity <- as.factor(df$activity)
+dat.m <- melt(df,id.vars='activity', measure.vars=c('f1.mean', 'f2.std', 
+                                                    'f3.max', 'f4.min',
+                                                    'f5.max_position', 
+                                                    'f6.min_position',
+                                                    'f7.hr', 
+                                                    'f8.skewness',
+                                                    'f9.kurtosis'))
+ggplot(dat.m) + geom_boxplot(aes(x=activity, y=value, color=variable))
+```
+
 ## reassign labels to each activity group
 ```{r}
 df$activity <- as.factor(df$activity)
-df <- subset(df, select = -c(X) )
 df <- subset(df, df$activity == 1 | df$activity == 2 | df$activity == 3 | 
                df$activity ==4 | df$activity == 5| df$activity == 6 | df$activity == 7 | 
                df$activity ==8)
@@ -109,15 +120,97 @@ fviz_cluster(df_kmeans, data = df_norm, geom = 'point') +
   ggtitle("K-means clustering plot (k=3)")
 ```
 
-
+## Feature selection with normalized data
+1. Lasso regression
 ```{r}
+library(glmnet)
 
+x <- as.matrix(df_norm) # all X vars
+y <- as.double(as.matrix(df$activity)) # Only Class
+
+# Fit the LASSO model (Lasso: Alpha = 1)
+set.seed(100)
+cv.lasso <- cv.glmnet(x, y, family='multinomial', alpha=1, standardize=TRUE, type.measure='mse')
 ```
 
 ```{r}
+# Results
+plot(cv.lasso)
 
+# plot(cv.lasso$glmnet.fit, xvar="lambda", label=TRUE)
+cat('Min Lambda: ', cv.lasso$lambda.min, '\n 1Sd Lambda: ', cv.lasso$lambda.1se)
+df_coef <- coef(cv.lasso, s=cv.lasso$lambda.min)
+
+# See all contributing variables
+print(df_coef)
+```
+
+2. Forward and backward stepwise selection
+```{r}
+trainData <- df
+trainData$activity <- as.double(trainData$activity)
+trainData[, 2:10] <- df_norm
+
+# Step 1: Define base intercept only model
+base.mod <- lm(activity ~ 1 , data=trainData)  
+
+# Step 2: Full model with all predictors
+all.mod <- lm(activity ~ . , data= trainData) 
+
+# Step 3: Perform step-wise algorithm. direction='both' implies both forward and backward stepwise
+stepMod <- step(base.mod, scope = list(lower = base.mod, upper = all.mod), 
+                direction = "both", trace = 0, steps = 1000)  
+
+# Step 4: Get the shortlisted variable.
+shortlistedVars <- names(unlist(stepMod[[1]])) 
+shortlistedVars <- shortlistedVars[!shortlistedVars %in% "(Intercept)"] # remove intercept
+
+# Show
+print(shortlistedVars)
+```
+
+## Feature selection with raw data
+1. Lasso regression
+```{r}
+library(glmnet)
+
+x <- as.matrix(df[, 2:10]) # all X vars
+y <- as.double(as.matrix(df$activity)) # Only Class
+
+# Fit the LASSO model (Lasso: Alpha = 1)
+set.seed(100)
+cv.lasso_raw <- cv.glmnet(x, y, family='multinomial', alpha=1, standardize=TRUE, type.measure='mse')
 ```
 
 ```{r}
-
+# Results
+plot(cv.lasso_raw)
+# plot(cv.lasso$glmnet.fit, xvar="lambda", label=TRUE)
+cat('Min Lambda: ', cv.lasso_raw$lambda.min, '\n 1Sd Lambda: ', cv.lasso_raw$lambda.1se)
+df_coef_raw <- coef(cv.lasso_raw, s=cv.lasso_raw$lambda.min)
+# See all contributing variables
+print(df_coef_raw)
 ```
+2. Forward and backward stepwise selection
+```{r}
+trainData <- df
+trainData$activity <- as.double(trainData$activity)
+
+# Step 1: Define base intercept only model
+base.mod <- lm(activity ~ 1 , data=trainData)  
+
+# Step 2: Full model with all predictors
+all.mod <- lm(activity ~ . , data= trainData) 
+
+# Step 3: Perform step-wise algorithm. direction='both' implies both forward and backward stepwise
+stepMod <- step(base.mod, scope = list(lower = base.mod, upper = all.mod), 
+                direction = "both", trace = 0, steps = 1000)  
+
+# Step 4: Get the shortlisted variable.
+shortlistedVars <- names(unlist(stepMod[[1]])) 
+shortlistedVars <- shortlistedVars[!shortlistedVars %in% "(Intercept)"] # remove intercept
+
+# Show
+print(shortlistedVars)
+```
+
