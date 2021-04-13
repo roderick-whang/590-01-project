@@ -120,6 +120,16 @@ fviz_cluster(df_kmeans, data = df_norm, geom = 'point') +
   ggtitle("K-means clustering plot (k=3)")
 ```
 
+```{r}
+df_kmeans <- kmeans(df_norm, centers = 8)
+table(df_kmeans$cluster, df$activity)
+```
+
+```{r message = FALSE}
+fviz_cluster(df_kmeans, data = df_norm, geom = 'point') + 
+  ggtitle("K-means clustering plot (k=8)")
+```
+
 ## Feature selection with normalized data
 1. Lasso regression
 ```{r}
