@@ -9,22 +9,26 @@ import numpy as np
 import scipy
 import math
 from scipy.stats import skew, kurtosis
-import argparse
+import re
 
 # %%
 # ACC:accelerometer data
-parser = argparse.ArgumentParser(description='the parameter is the subject number')
+file_num = 1 
+subject_name = "S" + str(file_num)
 
-parser.add_argument("-n", "--number", type=int, help='subject number to indicate the file name')
-args = parser.parse_args()
+sub_p = Path("../PPG_FieldStudy/"+subject_name + "/" + subject_name + "_quest.csv")
+with sub_p.open(mode='r') as sub_f:
+    lines = [line for line in sub_f]
 
-if args.number:
-    print(args.number)
-    file_num = args.number
-else:
-    file_num = 15
+age = int(re.findall(r"\d+", lines[1])[0])
+gender = re.findall(r", (m|f)", lines[2])[0]
+height = int(re.findall(r"\d+", lines[3])[0])
+weight = int(re.findall(r"\d+", lines[4])[0])
 
-subject_name = 'S'+str(file_num)
+
+# for line in sub_info_data:
+#     print(line)
+
 
 p = Path("../PPG_FieldStudy/"+subject_name + "/" + subject_name + ".pkl")
 with p.open(mode='rb') as f:
@@ -150,7 +154,6 @@ def norm(x, y):
     return math.fabs(x - y)
 
 def update_act(feature_df, segment, col_name):
-    segment = segment['activity']
     values, counts = np.unique(segment, return_counts=True)
     activity_value = values[np.argmax(counts)]
     feature_df = feature_df.append({col_name:activity_value}, ignore_index=True) 
@@ -245,8 +248,6 @@ def calculate_dtw(time_list, df_data=None):
 
 # dtw_matrix = calculate_dtw(time_list, df_data)
 # %%
-
-
 # print(feature_df)
 def get_featuredf(df_data):
     # Feature Extraction
@@ -285,98 +286,103 @@ def get_featuredf(df_data):
     return feature_df
 
 feature_df = get_featuredf(df_data)
+
+feature_df['age'] = age
+feature_df['gender'] = gender
+feature_df['height'] = height
+feature_df['weight'] = weight
+
 feature_df.to_csv(subject_name + ".csv")
 
 # %%
 
-# Visualization part
-'''
-df_data_temp = df_data[df_data['time'] < 20]
-plt.plot(df_data_temp['time'], df_data_temp['chest_ecg'], label='ecg amplitude')
-plt.title("ECG signal in the time-domain")
-plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.legend()
+# df_data_temp = df_data[df_data['time'] < 20]
+# plt.plot(df_data_temp['time'], df_data_temp['chest_ecg'], label='ecg amplitude')
+# plt.title("ECG signal in the time-domain")
+# plt.xlabel("Time (s)")
+# plt.ylabel("Amplitude")
+# plt.legend()
 
-# %%
-plt.plot(df_data_temp['time'], df_data_temp['wrist_acc_x'], label="x axis accelerator")
-plt.plot(df_data_temp['time'], df_data_temp['wrist_acc_y'], label='ecg amplitude')
-plt.title("ECG signal in the time-domain")
-plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.legend()
-# %%
+# # %%
+# plt.plot(df_data_temp['time'], df_data_temp['wrist_acc_x'], label="x axis accelerator")
+# plt.plot(df_data_temp['time'], df_data_temp['wrist_acc_y'], label='ecg amplitude')
+# plt.title("ECG signal in the time-domain")
+# plt.xlabel("Time (s)")
+# plt.ylabel("Amplitude")
+# plt.legend()
+# # %%
 
 
-freq_wrist_bvp = np.fft.rfftfreq(len(wrist_BVP_flat), 1/700)
-fft_wrist_bvp = np.fft.rfft(wrist_BVP_flat)
+# freq_wrist_bvp = np.fft.rfftfreq(len(wrist_BVP_flat), 1/700)
+# fft_wrist_bvp = np.fft.rfft(wrist_BVP_flat)
 
-plt.plot(freq_wrist_bvp[0:100000], np.abs(fft_wrist_bvp[0:100000])/np.max(np.abs(fft_wrist_bvp)), label="PPG signal")
-plt.title("PPG signal in the frequency-domain")
-plt.xlabel("Frequency (Hz)")
-plt.ylabel("Amplitude")
-plt.show()
-
-
-# freq_wrist_acc_x = np.fft.rfftfreq(len(wrist_acc_x_flat), 1/700) 
-# freq_wrist_acc_y = np.fft.rfftfreq(len(wrist_acc_y_flat), 1/700) 
-# freq_wrist_acc_z = np.fft.rfftfreq(len(wrist_acc_z_flat), 1/700) 
-
-# fft_wrist_acc_x = np.fft.rfft(wrist_acc_x_flat) 
-# fft_wrist_acc_y = np.fft.rfft(wrist_acc_x_flat) 
-# fft_wrist_acc_z = np.fft.rfft(wrist_acc_x_flat) 
-# plt.plot(freq_wrist_acc_x[0:100000], np.abs(freq_wrist_acc_x[0:100000])/np.max(np.abs(freq_wrist_acc_x)), label="ACC_X")
-
-freq_chest_ecg = np.fft.rfftfreq(len(chest_ecg_flat), 1/700)
-fft_chest_ecg = np.fft.rfft(chest_ecg_flat)
-
-plt.plot(freq_chest_ecg[0:1000000], np.abs(chest_ecg_flat[0:1000000])/np.max(np.abs(fft_chest_ecg)), label="PPG signal")
-plt.title("ECG signal in the frequency-domain")
-plt.xlabel("Frequency (Hz)")
-plt.ylabel("Amplitude")
-plt.show()
-# %%
-# plot the heart rate and the activity
-
-# get the activity seperation line
-t = abs(np.diff(df_data['activity']))
-seps_array = np.where(t>0)[0]
-print(seps_array)
-fig, ax1 = plt.subplots(1,1, figsize=(9, 5))
+# plt.plot(freq_wrist_bvp[0:100000], np.abs(fft_wrist_bvp[0:100000])/np.max(np.abs(fft_wrist_bvp)), label="PPG signal")
+# plt.title("PPG signal in the frequency-domain")
+# plt.xlabel("Frequency (Hz)")
+# plt.ylabel("Amplitude")
+# plt.show()
 
 
-ax1.set_xlabel('Time(s)')
+# # freq_wrist_acc_x = np.fft.rfftfreq(len(wrist_acc_x_flat), 1/700) 
+# # freq_wrist_acc_y = np.fft.rfftfreq(len(wrist_acc_y_flat), 1/700) 
+# # freq_wrist_acc_z = np.fft.rfftfreq(len(wrist_acc_z_flat), 1/700) 
 
-color = 'b'
-ax1.set_ylabel('Heart rate in bpm')
-ax1.plot(df_data['time'], df_data['hr'], color=color)
-ax1.tick_params(axis='y')
-for i in seps_array:
-    x_axis = df_data.loc[i]['time']
-    ax1.axvline(x_axis,ls='--',color='r')
-# ax1.fill_between(df_data['time'], 0, df_data['activity'], color=color)
+# # fft_wrist_acc_x = np.fft.rfft(wrist_acc_x_flat) 
+# # fft_wrist_acc_y = np.fft.rfft(wrist_acc_x_flat) 
+# # fft_wrist_acc_z = np.fft.rfft(wrist_acc_x_flat) 
+# # plt.plot(freq_wrist_acc_x[0:100000], np.abs(freq_wrist_acc_x[0:100000])/np.max(np.abs(freq_wrist_acc_x)), label="ACC_X")
 
-# ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+
+# freq_chest_ecg = np.fft.rfftfreq(len(chest_ecg_flat), 1/700)
+# fft_chest_ecg = np.fft.rfft(chest_ecg_flat)
+
+# plt.plot(freq_chest_ecg[0:1000000], np.abs(chest_ecg_flat[0:1000000])/np.max(np.abs(fft_chest_ecg)), label="PPG signal")
+# plt.title("ECG signal in the frequency-domain")
+# plt.xlabel("Frequency (Hz)")
+# plt.ylabel("Amplitude")
+# plt.show()
+# # %%
+# # plot the heart rate and the activity
+
+# # get the activity seperation line
+# t = abs(np.diff(df_data['activity']))
+# seps_array = np.where(t>0)[0]
+# print(seps_array)
+# fig, ax1 = plt.subplots(1,1, figsize=(9, 5))
+
+
+# ax1.set_xlabel('Time(s)')
 
 # color = 'b'
-# ax2.set_ylabel('heart rate', color=color)  # we already handled the x-label with ax1
-# ax2.plot(df_data['time'], df_data['hr'], color=color)
+# ax1.set_ylabel('Heart rate in bpm')
+# ax1.plot(df_data['time'], df_data['hr'], color=color)
+# ax1.tick_params(axis='y')
+# for i in seps_array:
+#     x_axis = df_data.loc[i]['time']
+#     ax1.axvline(x_axis,ls='--',color='r')
+# # ax1.fill_between(df_data['time'], 0, df_data['activity'], color=color)
 
-# ax2.tick_params(axis='y', labelcolor=color)
+# # ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
-fig.tight_layout()  # otherwise the right y-label is slightly clipped
-plt.title('Heart Rate and Activity Labels')
-plt.show()
-# %%
-plt.style.use("seaborn")
-df_data_temp = df_data[(df_data['time'] > 20) & (df_data['time'] < 40)]
-plt.plot(df_data_temp['time'], df_data_temp['wrist_bvp'], label="PPG amplitude")
-plt.title("PPG signal in the time-domain")
-plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.legend()
-plt.show()
+# # color = 'b'
+# # ax2.set_ylabel('heart rate', color=color)  # we already handled the x-label with ax1
+# # ax2.plot(df_data['time'], df_data['hr'], color=color)
 
-filtered_wrist_bvp = bandpass(df_data_temp['wrist_bvp'], 700)
-plt.plot(filtered_wrist_bvp)
-'''
+# # ax2.tick_params(axis='y', labelcolor=color)
+
+# fig.tight_layout()  # otherwise the right y-label is slightly clipped
+# plt.title('Heart Rate and Activity Labels')
+# plt.show()
+# # %%
+# plt.style.use("seaborn")
+# df_data_temp = df_data[(df_data['time'] > 20) & (df_data['time'] < 40)]
+# plt.plot(df_data_temp['time'], df_data_temp['wrist_bvp'], label="PPG amplitude")
+# plt.title("PPG signal in the time-domain")
+# plt.xlabel("Time (s)")
+# plt.ylabel("Amplitude")
+# plt.legend()
+# plt.show()
+
+# filtered_wrist_bvp = bandpass(df_data_temp['wrist_bvp'], 700)
+# plt.plot(filtered_wrist_bvp)
