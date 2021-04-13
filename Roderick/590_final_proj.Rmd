@@ -29,7 +29,23 @@ library(caret)
 library(e1071) # SVM
 set.seed(2021)
 
-df <- read.csv("S1.csv")
+df1 <- read.csv("S1.csv")
+df2 <- read.csv("S2.csv")
+df3 <- read.csv("S3.csv")
+df4 <- read.csv("S4.csv")
+df5 <- read.csv("S5.csv")
+df6 <- read.csv("S6.csv")
+df7 <- read.csv("S7.csv")
+df8 <- read.csv("S8.csv")
+df9 <- read.csv("S9.csv")
+df10 <- read.csv("S10.csv")
+df11 <- read.csv("S11.csv")
+df12 <- read.csv("S12.csv")
+df13 <- read.csv("S13.csv")
+df14 <- read.csv("S14.csv")
+df15 <- read.csv("S15.csv")
+
+df <- rbind(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, df11, df12, df13, df14, df15) 
 df$activity <- as.factor(df$activity)
 df <- subset(df, select = -c(X) )
 df <- subset(df, df$activity == 1 | df$activity == 2 | df$activity == 3 | 
@@ -47,6 +63,15 @@ df$activity[df$activity==2 | df$activity== 4 | df$activity == 7] <- 2
 
 
 df$activity <- factor(df$activity)
+
+a2 <- which(df$activity ==2)
+a3 <- which(df$activity ==3)
+
+a2_s <- sample(a2, 6000, replace = FALSE)
+a3_s <- sample(a3, 26000, replace = FALSE)
+
+df <- df[-c(a2_s, a3_s),]
+
 ```
 
 ```{r}
@@ -61,17 +86,22 @@ sample <- sample.split(df$activity, SplitRatio = .8) # dataset to split it into 
 df_train <- df[sample==TRUE, ]
 df_test <- df[sample==FALSE, ]
 
-X_train <- df_train[,2:10] # independent variables
+X_train <- subset(df_train, select = -c(activity) ) # independent variables
 y_train <- df_train[,1] # tartget variables
 
-X_test <- df_test[,2:10] # independent variables
+X_test <- subset(df_test, select = -c(activity) ) # independent variables
 y_test <- df_test[,1] # tartget variables
 ```
 
 ## RF
 
 ```{r}
-rf.model <- randomForest(formula = activity ~ ., data = df_train, ntree=500, mtry=3, importance = TRUE, type="prob")
+bestmtry <- tuneRF(X_train, y_train, stepFactor=1.5, improve=1e-5, ntree=700)
+print(bestmtry)
+```
+
+```{r}
+rf.model <- randomForest(formula = activity ~ ., data = df_train, ntree=700, mtry=3, importance = TRUE, type="prob")
 rf.model
 ```
 ```{r}
@@ -100,11 +130,11 @@ for (i in 1:3)
  perf <- performance(pred, "tpr", "fpr")
  if (i==1)
  {
-     plot(perf,main="ROC Curve",col=colours[i]) 
+     plot(perf,main="ROC Curve of RF",col=colours[i]) 
  }
  else
  {
-     plot(perf,main="ROC Curve",col=colours[i],add=TRUE) 
+     plot(perf,main="ROC Curve of RF",col=colours[i],add=TRUE) 
  }
  legend("bottomright",  c("class_1","class_2","class_3"), col = colours, lty= 1, horiz=TRUE)
  # Calculate the AUC and print it to screen
@@ -113,20 +143,23 @@ for (i in 1:3)
 }
 ```
 
+
 ## SVM
 ```{r}
-set.seed(1)
-tune.out <- tune(svm, activity ~., data=df_train, 
-                 kernel='radial', 
-                 ranges = list(cost=c(0.1,1,10,100,1000),
-                 gamma=c(0.5, 1,2,3,4)))
+#set.seed(1)
+#X <- sample(dim(X_train)[1], 3000, replace=FALSE)
+#tune.out <- tune(svm, activity ~., data=df_train[X,], 
+#                 kernel='radial', 
+#                 ranges = list(cost=c(0.1,1,10,100,1000),
+#                 gamma=c(0.5, 1,2,3,4)))
 
-summary(tune.out)
+#summary(tune.out)
 ```
 
 ```{r}
-svm.opt <- svm(activity ~., data=df_train, kernel='radial',
-               gamma=0.5, cost=10, decision.values=T, probability = TRUE)
+svm.opt <- svm(activity ~., data=df_train, kernel='radial', type =  'C-classification',
+               gamma=0.07, cost=10
+               , decision.values=T, probability = TRUE)
 pred <- predict(svm.opt, X_test, decision.values = TRUE, probability = TRUE)
 
 confusionMatrix(pred, y_test)
@@ -149,11 +182,11 @@ for (i in 1:3)
  perf <- performance(pred, "tpr", "fpr")
  if (i==1)
  {
-     plot(perf,main="ROC Curve",col=colours[i]) 
+     plot(perf,main="ROC Curve of SVM",col=colours[i]) 
  }
  else
  {
-     plot(perf,main="ROC Curve",col=colours[i],add=TRUE) 
+     plot(perf,main="ROC Curve of SVM",col=colours[i],add=TRUE) 
  }
  legend("bottomright",  c("class_1","class_2","class_3"), col = colours, lty= 1, horiz=TRUE)
  # Calculate the AUC and print it to screen
