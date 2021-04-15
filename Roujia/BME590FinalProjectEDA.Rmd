@@ -61,16 +61,18 @@ ggplot(dat.m) + geom_boxplot(aes(x=activity, y=value, color=variable)) + theme(t
 
 ## reassign labels to each activity group
 ```{r}
-df$activity <- as.factor(df$activity)
+# df$activity <- as.factor(df$activity)
 df <- subset(df, df$activity == 1 | df$activity == 2 | df$activity == 3 | 
                df$activity ==4 | df$activity == 5| df$activity == 6 | df$activity == 7 | 
                df$activity ==8)
 # df$Activity
 # low = 1
-# medium = 3
-df$activity[df$activity== 3 | df$activity== 5 | df$activity == 6 | df$activity == 8] <- 3
-# high = 2
-df$activity[df$activity==2 | df$activity== 4 | df$activity == 7] <- 2
+# medium = NA
+df$activity[df$activity== 3  | df$activity== 5 | df$activity == 6 | df$activity == 8] <- 9
+# high = 3
+df$activity[df$activity==2 | df$activity== 4 | df$activity == 7] <- 3
+# medium = 2
+df$activity[df$activity== 9] <- 2
 df$activity <- factor(df$activity)
 ```
 
