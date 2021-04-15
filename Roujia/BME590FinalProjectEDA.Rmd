@@ -56,7 +56,7 @@ dat.m <- melt(df,id.vars='activity', measure.vars=c('f1.mean', 'f2.std',
                                                     'f7.hr', 
                                                     'f8.skewness',
                                                     'f9.kurtosis'))
-ggplot(dat.m) + geom_boxplot(aes(x=activity, y=value, color=variable))
+ggplot(dat.m) + geom_boxplot(aes(x=activity, y=value, color=variable)) + theme(text = element_text(size=36))
 ```
 
 ## reassign labels to each activity group
@@ -84,7 +84,7 @@ dat.m <- melt(df,id.vars='activity', measure.vars=c('f1.mean', 'f2.std',
                                                     'f7.hr', 
                                                     'f8.skewness',
                                                     'f9.kurtosis'))
-ggplot(dat.m) + geom_boxplot(aes(x=activity, y=value, color=variable))
+ggplot(dat.m) + geom_boxplot(aes(x=activity, y=value, color=variable)) + theme(text = element_text(size=30))
 ```
 
 ## normalize the variables
